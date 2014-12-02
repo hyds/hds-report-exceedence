@@ -1,4 +1,4 @@
-has-report-exceedence
+hds-report-exceedence
 =====================
 
 HYSCRIPT wrapper for report ratings table exceedences using HYCSV
