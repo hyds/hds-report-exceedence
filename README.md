@@ -18,15 +18,9 @@ It emulates the type of output produced by a program like HYCSV's HYDSYS.ERR rep
 
 This script enables all the exceedences to be assembled and output to one, email compliant, html report. The html output can be imported into an email script and sent weekly.
 
-# TODO
+# Output Report
 
-### Phase changes
-Look back to the last rating.
-1. if there is ts but no rating - report
-2. if the last rating is phase = T, then take the SDATE of the previous rating as the SDATE for the JSonCall and max & min for the period
-3. look forward to the next false (ie ignore true) - if no end date, take now.
- 
-# Dependencies
+![Output Report](/images/out.png)
 
 # Parameter screen
 
@@ -35,6 +29,18 @@ Look back to the last rating.
 # INI configuration
 
 ![INI file](/images/ini.png)
+
+# TODO
+
+### Phase changes
+
+Look back to the last rating.
+1. if there is ts but no rating - report
+2. if the last rating is phase = T, then take the SDATE of the previous rating as the SDATE for the JSonCall and max & min for the period
+3. look forward to the next false (ie ignore true) - if no end date, take now.
+ 
+# Dependencies
+
   
 # Bugs
 
