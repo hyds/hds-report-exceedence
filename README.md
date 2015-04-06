@@ -9,9 +9,19 @@ Version 0.01
 
 ## Synopsis
 
-Define your documents naming convention as follows:
+This HYSCRIPT enables the HYDSYS.ERR to be a report produced from a rating table exceedence.
+
+Typically the Ratings Team in a surface water data group requires information on the time and rating number that a timeseries point exceeds a rating.
+
+
+
+## TODO
+
+
+
 
 ## Dependencies
+
 
 ## Parameter screen
 
