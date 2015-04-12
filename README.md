@@ -18,7 +18,7 @@ This script enables all the exceedences to be assembled and output to one, email
 
 # Output Report
 
-![Output Report](/images/out.png)
+![Output Report](/images/report.png)
 
 # Parameter screen
 
@@ -33,9 +33,11 @@ This script enables all the exceedences to be assembled and output to one, email
 ### Phase changes
 
 Look back to the last rating.
-1. if there is ts but no rating - report
-2. if the last rating is phase = T, then take the SDATE of the previous rating as the SDATE for the JSonCall and max & min for the period
+
+1. If there is ts but no rating - report
+2. If the last rating is phase = T, then take the SDATE of the previous rating as the SDATE for the JSonCall and max & min for the period
 3. look forward to the next false (ie ignore true) - if no end date, take now.
+
  
 # Dependencies
 
