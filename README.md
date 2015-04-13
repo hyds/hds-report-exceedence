@@ -35,8 +35,9 @@ This script enables all the exceedences to be assembled and output to one, email
 Look back to the last rating.
 
 1. If there is ts but no rating - report
-2. If the last rating is phase = T, then take the SDATE of the previous rating as the SDATE for the JSonCall and max & min for the period
-3. look forward to the next false (ie ignore true) - if no end date, take now.
+2. If the last rating is phase = T, then 
+2.1. Set the startdate for the ts period back 1 week from the start date for ts for the JSonCall get_ts max & min
+3. look forward to the next false (ie ignore true) - if no end date, take now
 
  
 # Dependencies
