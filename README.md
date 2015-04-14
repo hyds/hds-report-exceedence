@@ -1,28 +1,28 @@
-hds-report-exceedence
+hds-report-exceedance
 =====================
-
-# Version
 
 Version 1.01
 
 # Synopsis
 
-Typically the Ratings Team in a surface water data group requires information on the time and rating number that a timeseries point exceeds the latest rating. To accommodate such a requirement, this HYSCRIPT reports on rating table exceedence in a table output. 
+Typically the Ratings Team in a surface water data group requires information on the time and rating number that a timeseries point exceeds the latest rating. To accommodate such a requirement, this HYSCRIPT reports on rating table exceedance in a table output. 
 
 It emulates the type of output produced by a program like HYCSV's HYDSYS.ERR report. HYDSYS.ERR is generated when a program like HYCSV, 
 
 1. Pushes data through a rating, and 
-2. Finds a rating exceedence
+2. Finds a rating exceedance
 
-This script enables all the exceedences to be assembled and output to one, email compliant, html report. The html output can be imported into an email script and sent weekly.
+This script enables all the exceedances to be assembled and output to one, email compliant, html report. The html output can be imported into an email script and sent weekly.
 
 # Phased Ratings Logic
 
 If the scripts finds a phased rating it;
 
+```
 1. Looks forward until the next non-phased rating and takes that rating as the end point for the current rating
 2. Takes the phased rating date as the start date for the next rating
 3. Uses the dll to get the max & min for the entire duration of the phasing dates
+```
 
 # Output Report
 
