@@ -1,6 +1,5 @@
 hds-report-exceedance
 =====================
-
 Version 1.01
 
 # Synopsis
@@ -12,17 +11,17 @@ It emulates the type of output produced by a program like HYCSV's HYDSYS.ERR rep
 1. Pushes data through a rating, and 
 2. Finds a rating exceedance
 
-This script enables all the exceedances to be assembled and output to one, email compliant, html report. The html output can be imported into an email script and sent weekly.
+HYCSV will error when an exceedance is found, so the workflow was to run it, find an exceedance, fix it, run HYCSV again to find the next exceedance, etc. This exceedance script however enables all the exceedances to be assembled and reported in one output.
+
+It is also email compliant so that the html output can be imported into the body of an email and sent weekly to RATINGS administrators.
 
 # Phased Ratings Logic
 
 If the scripts finds a phased rating it;
 
-```
-1. Looks forward until the next non-phased rating and takes that rating as the end point for the current rating
-2. Takes the phased rating date as the start date for the next rating
-3. Uses the dll to get the max & min for the entire duration of the phasing dates
-```
+* Looks forward until the next non-phased rating and takes that rating as the end point for the current rating
+* Takes the phased rating date as the start date for the next rating
+* Uses the dll to get the max & min for the entire duration of the phasing dates
 
 # Output Report
 
