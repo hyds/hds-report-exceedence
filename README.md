@@ -17,11 +17,13 @@ It is also email compliant so that the html output can be imported into the body
 
 # Phased Ratings Logic
 
-If the scripts finds a phased rating it;
+For each non-phased rating, the script;
 
-* Looks forward until the next non-phased rating and takes that rating as the end point for the current rating
-* Takes the preceeding phased rating date as the start date for the next rating
+* Looks forward for the next non-phased rating and takes that rating as the end datetime for the timeseries maxmin lookup
+* Looks backward for the next non-phased rating and takes penultimate phased rating as the start datetime for the timeseries maxmin lookup
 * Uses the dll to get the max & min for the phasing dates
+
+A phased rating is accommodated by the above procedure
 
 # Output Report
 
@@ -37,15 +39,15 @@ If the scripts finds a phased rating it;
  
 # Dependencies
 
-###Hydrological Data Services 
-local::lib "$Bin/HDS/";
+###Hydrological Data Services Modules
+* /HDS/ Directory
 
 ###Kisters modules
-HydDLLp;
+* HydDLLp
 
 ###Kisters libraries
-'hydlib.pl';
-'hydtim.pl';
+* hydlib.pl
+* hydtim.pl
   
 # Bugs
 

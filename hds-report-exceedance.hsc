@@ -67,10 +67,12 @@ require 'hydtim.pl';
 #Globals
 my $prt_fail = '-X';
 my $level_varnum = '100.00';
+my ($dll,$use_hydbutil,$now);
+my (%ini,%temp,%errors,%report);
+my (@junkfiles);
 
 main: {
   
-  my ($dll,$use_hydbutil,%ini,%temp,%errors,%report,@junkfiles);
   
   #Gather parameters and config
   my $script     = lc(FileName($0));
@@ -94,7 +96,7 @@ main: {
   $report{htmlfile} = $htmlfile;
   $report{'title'} = $script;
   
-  my $now = NowString();
+  $now = NowString();
   my $nowdat = substr ($now,0,8); #YYYYMMDDHHIIEE to YYYYMMDD for default import date
   my $nowtim = substr ($now,8,4); #YYYYMMDDHHIIEE to HHII for default import time
   
@@ -150,226 +152,246 @@ main: {
           'return_type' => 'array'
       }
     }, 1000000);
-
-    my @ratings;
     
+    if (! $ratper->{return}->{rows}){
+      $report{footer}{'No rateper'}{$site}++;
+      Prt('-S'," - No ratings for [$site]\n");
+      next;
+    }
+    
+    my @ratings;
     try {
       @ratings = @{$ratper->{return}->{rows}};
     }
     catch {
-      $report{footer}{'No rateper'}{$site}++;
-      Prt('-S'," - No ratings for [$site]\n");
+      $report{footer}{'Rateper array problem'}{$site}++;
+      Prt('-S'," - Rateper array problem [$site]\n");
       next;
     };
     
-    foreach my $rating ( 0 ..  $#ratings ) {
-      print "checking site ratings [$site] - $rating/$#ratings      \r";
-      my $next_rating = $rating + 1;
-      my $phased = 0;
-
-=skip      
-      if ( $ratings[$rating]->{phase} eq 'false' ){
-        print "no phased rating\n";  
-        $next_rating = ;
-      }
-=cut
-      
-      if( $ratings[$rating]->{phase} eq 'true' && $rating != 0){
-        my $phase_rating_count = 1;
-        $phased = 1;
-=skip LOOK FORWARD FOR NEXT NON-PHASE CHANGE          
-          foreach my $rat ( $rating + 1 ..  $#ratings ) {
-            #Prt('-P',"phased rat number [$#ratings]\n");
-            if ( $rat > $#ratings ) {
-              $next_rating = -1;
-            }
-            else{
-              if( $ratings[$rat]->{phase} eq 'true' ){
-                print "Phased rating [$phase_rating_count]\n";  
-                $next_rating = $rat + 1;
-                $phase_rating_count++;
-                next;
-              }
-            }
-          }
-=cut          
-        }
-        
-        my $refstn = $ratings[$rating]->{refstn};
-        my $reftab = $ratings[$rating]->{reftab};
-        my $sdate = $ratings[$rating]->{sdate};
-        my $stime = $ratings[$rating]->{stime};
-        
-        my ($hhmm,$ss) = split('\.',$stime);
-        my $start_time = $sdate.sprintf("%04d",$hhmm).sprintf("%02d",$ss);
-        my $phased_time = ReltoStr( StrtoRel($start_time)-10080 );
-        $start_time = ( $phased == 1 )?  $phased_time: $start_time; # 1440 min a day = 1440 * 7 for a week = 10080
-        
-        #if it's the last rating then take now as the time for max min.
-        #if it's a phased rating do I need to check agasint each of the ratings, not just get the max min within the one rating.
-        #Str times are strings of the form 'yyyymmddhhiiee'
-
-        my $edate = $ratings[$next_rating]->{sdate};
-        my $etime = $ratings[$next_rating]->{stime};
-        
-        my ($ehhmm,$ess) = split('\.',$etime);
-        my $end_time = $edate.sprintf("%04d",$ehhmm).sprintf("%02d",$ess);
-        my $adjusted_end = ReltoStr(StrtoRel($end_time)-1);
-        my $end_time = ( $rating + 1 >  $#ratings)? $now : $adjusted_end; #yyyymmddhhiiee minus a minute so as not to overlap with the next rating
-        
-        my $ratepts = $dll->JSonCall({'function' => 'get_db_info',
-            'version' => 3,
-            'params' => {
-                'table_name'  => 'ratepts',
-                'sitelist_filter'=>$refstn,
-                'return_type' => 'hash',
-                'filter_values'=> {
-                  'station'=> $refstn,
-                  'table'=>$reftab,
-                  'varfrom'=> 100,
-                  'varto'=> 141,
-                },
-
-            },
-        }, 1000000);
-
-        my %ratepoints;
-        try {
-          %ratepoints = %{$ratepts->{return}->{rows}->{$refstn}->{'100.00'}->{141}->{$reftab}};
-        }
-        catch {
-          $report{footer}{'No ratepts'}{$refstn}++;
-          Prt('-S'," - No ratepts for [$site]\n");
-          next;
-        };
+    if (!@ratings){
+      $report{footer}{'No rating for site'}{$site}++;
+      Prt('-S'," - No ratings for [$site]\n");
+      next;
+    }
     
-        my $count = 0;
-        my $releases_count = keys %ratepoints;
-        my $latest_release;
-        
-        foreach my $release (sort {$a <=> $b} keys %ratepoints ) {
-            if ($count == $releases_count-1){
-                $latest_release = $release;
-            }
-            $count++;
-        }
-        
-        my $ratept = $dll->JSonCall({'function' => 'get_db_info',
-            'version' => 3,
-            'params' => {
-                'table_name'  => 'ratepts',
-                'sitelist_filter'=>$refstn,
-                'return_type' => 'array',
-                'filter_values'=> {
-                  'station'=> $refstn,
-                  'table'=>$reftab,
-                  'varfrom'=> 100,
-                  'varto'=> 141,
-                  'release'=>$latest_release,
-                },
-
-            },
-        }, 1000000);
-        
-        my @rate;
-        try {
-          @rate = @{$ratept->{return}->{rows}};
-        }
-        catch {
-          $report{footer}{'No ratept'}{$refstn}++;
-          Prt('-S'," - No ratept for [$site]\n");
-          next;
-        };
-                
-        my $min_stage_rating = $rate[0]->{stage}; 
-        my $min_stage_rating_release = $rate[0]->{release};
-        my $min_stage_rating_table = $rate[0]->{table};
-        my $varfrom = $rate[0]->{varfrom};
-        my $varto = $rate[0]->{varto};
-        
-        my $max_stage_rating = $rate[$#rate]->{stage};
-        my $max_stage_rating_release = $rate[$#rate]->{release};
-        my $max_stage_rating_table = $rate[$#rate]->{table};
-       
-        my $tscall = $dll->JSonCall({ 'function'=> 'get_ts_traces', 
-          'version'=> 2,
-          'params'=> {
-            'site_list'=> $site, 
-            'datasource'=> 'A', 
-            'varfrom'=> '100.00', 
-            'varto'=> '100.00', 
-            'start_time'=> $start_time, 
-            'end_time'=> $end_time, 
-            'data_type'=> 'max', 
-            'interval'=> 'period', 
-            'multiplier'=> '1'
-          }
-        },100000);
-        
-        #Prt('-P',"tscal [".HashDump($tscall)."]\n");
-        
-        my $max_val;
-        try {
-          $max_val = $tscall->{return}->{traces}[0]->{trace}[0]->{v};
-        }
-        catch {
-          $report{footer}{'No ts trace'}{$site}++;
-          Prt('-S'," - No ts trace [$site]\n");
-          next;
-        };
-        
-        my $max_tim = $tscall->{return}->{traces}[0]->{trace}[0]->{t};
-        
-        my $max_str_tim = StrtoPrm($max_tim);
-        
-        my $tsmincall = $dll->JSonCall({ 'function'=> 'get_ts_traces', 
-          'version'=> 2,
-          'params'=> {
-            'site_list'=> $site, 
-            'datasource'=> 'A', 
-            'varfrom'=> '100.00', 
-            'varto'=> '100.00', 
-            'start_time'=> $start_time, 
-            'end_time'=> $end_time, 
-            'data_type'=> 'min', 
-            'interval'=> 'period', 
-            'multiplier'=> '1'
-          }
-        },100000);
-        
-        my $min_val = $tsmincall->{return}->{traces}[0]->{trace}[0]->{v};
-        my $min_tim = $tsmincall->{return}->{traces}[0]->{trace}[0]->{t};
-        my $min_str_tim = StrtoPrm($min_tim);
+    #if latest RATEPER is ticked then start at the latest rating 
+    my $rating = $#ratings; #($start_rating eq 'true')? $#ratings : 0;
+    checkRating({site=>$site,rating=>$rating,ratings=>$ratper->{return}->{rows}});
     
-        if ( $max_val > $max_stage_rating  ){
-          my $key = qq{$site$reftab$max_stage_rating_release$max_stage_rating};
-          $key =~ s{\.}{}g;
-          #$report{body}{$site}{max}{$key}{'Station'}                         = $site;
-          $report{body}{$site}{max}{$key}{'Ref Table'}                       = $reftab;
-          $report{body}{$site}{max}{$key}{'Release'}                         = $max_stage_rating_release;
-          $report{body}{$site}{max}{$key}{'Max Rating'}                      = $max_stage_rating;
-          $report{body}{$site}{max}{$key}{'Max Stage'}                       = $max_val;
-          $report{body}{$site}{max}{$key}{'Max Time'}                        = $max_str_tim;
-        }
-        elsif ( $min_val < $min_stage_rating && $min_val > 0){
-          my $key = qq{$site$reftab$max_stage_rating_release$min_stage_rating};
-          $key =~ s{\.}{}g;
-          #$report{body}{$site}{min}{$key}{'Station'}                         = $site;
-          $report{body}{$site}{min}{$key}{'Ref Table'}                       = $reftab;
-          $report{body}{$site}{min}{$key}{'Release'}                         = $max_stage_rating_release;
-          $report{body}{$site}{min}{$key}{'Min Rating'}                      = $min_stage_rating;
-          $report{body}{$site}{min}{$key}{'Min Stage'}                       = $min_val;
-          $report{body}{$site}{min}{$key}{'Min Time'}                        = $min_str_tim;
-        } 
-      #} # end If Phase
-    } # end ratings loop
+    #foreach my $rating ( 0 ..  $#ratings ) {
+    #   checkRating({ratings=>\@ratings,rating=>$rating});
+    #} # end ratings loop
   }# end site loop
-  
   $dll->Close;
- 
   writeHTML(\%report);
+}  # end main
+
+sub checkRating {
+  my $rat = shift;
+  my %rating_config = %{$rat};
+  
+  my $rating          = $rating_config{rating};
+  my $site            = $rating_config{site};
+  my @ratings         = @{$rating_config{ratings}};
+  
+  # Start/End timestamps for get_ts_values
+  print "Checking site ratings [$site] - $rating/$#ratings \n";
+  next if ( $ratings[$rating]->{phase} eq 'true');      #assume that we don't want the phased rating as the start point because we check for phases below
+  
+  my ( $edate, $etime, $end_time, $sdate, $stime, $start_time );
+  my $refstn = $ratings[$rating]->{refstn};
+  my $reftab = $ratings[$rating]->{reftab};
+  
+  if ( $rating == $#ratings ) {
+    $end_time = $now;                                   #assume that the rating is still valid today; as it is the last rating no phases in future
+  }
+  else{                                                 #Check forward for phased ratings.  
+    for ( my $i=$rating+1; $i <= $#ratings; $i++ ) {
+      print " - phased forward [$i/$#ratings]\r";
+      if( $ratings[$i]->{phase} eq 'true' ){
+        next;
+      }
+      elsif( $ratings[$i]->{phase} eq 'false' ){
+        $edate = $ratings[$i]->{sdate};
+        $etime = $ratings[$i]->{stime};
+        my ($ehhmm,$ess) = split('\.',$etime);
+        $end_time = $edate.sprintf("%04d",$ehhmm).sprintf("%02d",$ess);
+        $end_time = ReltoStr( StrtoRel($end_time)-1 );  #yyyymmddhhiiee minus a minute so as not to overlap with the next rating
+        last;
+      }
+    }
+  } # End forward check phase ratings
+                                                        #Set them now, and then reset if we find a phased rating before the rating sdate/stime
+  $sdate = $ratings[$rating]->{sdate};
+  $stime = $ratings[$rating]->{stime};
+  
+  if ( $rating != 0){                                   #Check backward for phased ratings if not the first rating
+    for ( my $j=$rating-1; $j >= 0; $j--) {
+      print " - phased backward [$j/$#ratings]\r";
+      if( $ratings[$j]->{phase} eq 'true' ){
+        $sdate = $ratings[$j]->{sdate};                 #just keep resetting 
+        $stime = $ratings[$j]->{stime};
+        next;
+      }
+      elsif( $ratings[$j]->{phase} eq 'false' ){
+        last;
+      }
+    }
+  } # End backward check phase ratings
+    
+  my ($hhmm,$ss) = split('\.',$stime);
+  $start_time = $sdate.sprintf("%04d",$hhmm).sprintf("%02d",$ss);
+    
+  my $ratepts = $dll->JSonCall({'function' => 'get_db_info',
+      'version' => 3,
+      'params' => {
+          'table_name'  => 'ratepts',
+          'sitelist_filter'=>$refstn,
+          'return_type' => 'hash',
+          'filter_values'=> {
+            'station'=> $refstn,
+            'table'=>$reftab,
+            'varfrom'=> 100,
+            'varto'=> 141,
+          },
+
+      },
+  }, 1000000);
+
+  my %ratepoints;
+  try {
+    %ratepoints = %{$ratepts->{return}->{rows}->{$refstn}->{'100.00'}->{141}->{$reftab}};
+  }
+  catch {
+    $report{footer}{'No ratepts'}{$refstn}++;
+    Prt('-S'," - No ratepts for [$site]\n");
+    next;
+  };
+
+  my $count = 0;
+  my $releases_count = keys %ratepoints;
+  my $latest_release;
+  
+  foreach my $release (sort {$a <=> $b} keys %ratepoints ) {
+      if ($count == $releases_count-1){
+          $latest_release = $release;
+      }
+      $count++;
+  }
+  
+  my $ratept = $dll->JSonCall({'function' => 'get_db_info',
+      'version' => 3,
+      'params' => {
+          'table_name'  => 'ratepts',
+          'sitelist_filter'=>$refstn,
+          'return_type' => 'array',
+          'filter_values'=> {
+            'station'=> $refstn,
+            'table'=>$reftab,
+            'varfrom'=> 100,
+            'varto'=> 141,
+            'release'=>$latest_release,
+          },
+
+      },
+  }, 1000000);
+  
+  my @rate;
+  try {
+    @rate = @{$ratept->{return}->{rows}};
+  }
+  catch {
+    $report{footer}{'No ratept'}{$refstn}++;
+    Prt('-S'," - No ratept for [$site]\n");
+    next;
+  };
+          
+  my $min_stage_rating = $rate[0]->{stage}; 
+  my $min_stage_rating_release = $rate[0]->{release};
+  my $min_stage_rating_table = $rate[0]->{table};
+  my $varfrom = $rate[0]->{varfrom};
+  my $varto = $rate[0]->{varto};
+  
+  my $max_stage_rating = $rate[$#rate]->{stage};
+  my $max_stage_rating_release = $rate[$#rate]->{release};
+  my $max_stage_rating_table = $rate[$#rate]->{table};
  
- 
+  my $tscall = $dll->JSonCall({ 'function'=> 'get_ts_traces', 
+    'version'=> 2,
+    'params'=> {
+      'site_list'=> $site, 
+      'datasource'=> 'A', 
+      'varfrom'=> '100.00', 
+      'varto'=> '100.00', 
+      'start_time'=> $start_time, 
+      'end_time'=> $end_time, 
+      'data_type'=> 'max', 
+      'interval'=> 'period', 
+      'multiplier'=> '1'
+    }
+  },100000);
+  
+  #Prt('-P',"tscal [".HashDump($tscall)."]\n");
+  
+  my ( $max_val, $max_tim, $max_str_tim );
+  try {
+    $max_val = $tscall->{return}->{traces}[0]->{trace}[0]->{v};
+    $max_tim = $tscall->{return}->{traces}[0]->{trace}[0]->{t};
+    $max_str_tim = StrtoPrm($max_tim);
+    if ( $max_val > $max_stage_rating  ){
+      my $key = qq{$site$reftab$max_stage_rating_release$max_stage_rating};
+      $key =~ s{\.}{}g;
+      #$report{body}{$site}{max}{$key}{'Station'}                         = $site;
+      $report{body}{$site}{max}{$key}{'Ref Table'}                       = $reftab;
+      $report{body}{$site}{max}{$key}{'Release'}                         = $max_stage_rating_release;
+      $report{body}{$site}{max}{$key}{'Max Rating'}                      = $max_stage_rating;
+      $report{body}{$site}{max}{$key}{'Max Stage'}                       = $max_val;
+      $report{body}{$site}{max}{$key}{'Max Time'}                        = $max_str_tim;
+    }
+  }
+  catch {
+    $report{footer}{'No max ts value'}{$site}++;
+    Prt('-S'," - No max ts trace value [$site]\n");
+  };
+        
+  
+  my $tsmincall = $dll->JSonCall({ 'function'=> 'get_ts_traces', 
+    'version'=> 2,
+    'params'=> {
+      'site_list'=> $site, 
+      'datasource'=> 'A', 
+      'varfrom'=> '100.00', 
+      'varto'=> '100.00', 
+      'start_time'=> $start_time, 
+      'end_time'=> $end_time, 
+      'data_type'=> 'min', 
+      'interval'=> 'period', 
+      'multiplier'=> '1'
+    }
+  },100000);
+  
+  my ( $min_val, $min_tim, $min_str_tim);
+  try{  
+    $min_val = $tsmincall->{return}->{traces}[0]->{trace}[0]->{v};
+    $min_tim = $tsmincall->{return}->{traces}[0]->{trace}[0]->{t};
+    $min_str_tim = StrtoPrm($min_tim);
+    if ( $min_val < $min_stage_rating && $min_val > 0){
+      my $key = qq{$site$reftab$max_stage_rating_release$min_stage_rating};
+      $key =~ s{\.}{}g;
+      #$report{body}{$site}{min}{$key}{'Station'}                         = $site;
+      $report{body}{$site}{min}{$key}{'Ref Table'}                       = $reftab;
+      $report{body}{$site}{min}{$key}{'Release'}                         = $max_stage_rating_release;
+      $report{body}{$site}{min}{$key}{'Min Rating'}                      = $min_stage_rating;
+      $report{body}{$site}{min}{$key}{'Min Stage'}                       = $min_val;
+      $report{body}{$site}{min}{$key}{'Min Time'}                        = $min_str_tim;
+    } 
+  }
+  catch {
+    $report{footer}{'No min ts value'}{$site}++;
+    Prt('-S'," - No min ts trace value [$site]\n");
+  };
+  
 }
 
 sub writeHTML {
@@ -378,9 +400,9 @@ sub writeHTML {
   
   my $html          = $rep{html};
   my $report_title  = $rep{title};
-  my $htmlfile    = $rep{htmlfile};
-  my $rep_body   = $rep{body};
-  my $rep_footer   = $rep{footer};
+  my $htmlfile      = $rep{htmlfile};
+  my $rep_body      = $rep{body};
+  my $rep_footer    = $rep{footer};
   my $report_body; 
   my $report_footer; 
   my $body;
@@ -412,6 +434,7 @@ sub writeHTML {
       $report_footer .= "-- End --"; 
     }
   }
+  
   $body    = qq{<body>$report_body</body>};
   $footer  = qq{<footer>$report_footer</footer>};
   $html =~ s{{{title}}}{$html_title}; 
@@ -445,15 +468,13 @@ sub createHtmlBodyFromHashRef{
   my $html = '';  
     
   foreach my $site (keys %body) {
-    my $head = qq{<caption colspan="6">Site: $site</caption>};
+    my $head = qq{<caption colspan="5">Site: $site</caption>};
     my $html_table = '<table border="1">';
     $html_table.= $head;
       
     my %repbody = %{$body{$site}};
     foreach my $section ( sort keys %repbody) {
       my $ucfirt_section = ucfirst($section);
-      my $sub = qq{<tr><td colspan="6"><b>$ucfirt_section Rating Exceedance</b><br></td></tr>};
-      $html_table .= $sub;
       
       my %rows = %{$repbody{$section}};
       
@@ -473,6 +494,11 @@ sub createHtmlBodyFromHashRef{
         push (@headers,$h);
       }
       
+      my $colspan = $#headers+1;
+      
+      my $sub = qq{<tr><td colspan="$colspan"><div class="tabhead">$ucfirt_section Rating Exceedance</div></td></tr>};
+      $html_table .= $sub;
+      
       my $tr_head = qq{<tr>};
       foreach my $head ( @headers ){
         $tr_head .= qq{<td>$head</td>}
@@ -491,7 +517,7 @@ sub createHtmlBodyFromHashRef{
         $html_table .= $tr_body;
       }
     }
-    $html_table .= qq{</table><br><br>};
+    $html_table .= qq{</table><br>};
     $html .= $html_table;
   }
  return $html;
@@ -502,24 +528,26 @@ sub createHtmlFooterFromHashRef{
   my %footer = %{$report_footer};
   my $html = '';  
 
-  my $head = qq{<footer>Exceptions</footer>};
+  my $header = qq{<div class="footer">Notes:</div>};
   my $table = '<table border="1">';
-  $table .= $head;
+  $html .= $header;
   my @headers; 
   foreach my $h ( sort keys %footer){
     push (@headers,$h);
   }
       
   foreach my $head ( @headers ){
-    my $sub = qq{<tr><td><b>$head</b></td></tr>};
-    $html .= $sub;
-    my $tr_footer = qq{<tr>};
+    my $sub = qq{<tr><td><b>$head</b></td>};
+    $table .= $sub;
+    my $tr_footer = qq{<td>};
     foreach my $site ( sort keys %{ $footer{$head} }) {
-        $tr_footer .= qq{<td>$site</td>};  
+        $tr_footer .= qq{$site, };  
     }
-    $tr_footer .= qq{</tr>};
-    $html .= $tr_footer;
+    $tr_footer .= qq{</td>};
+    $table .= qq{$tr_footer</tr>};
   }
+  $table .= qq{</table>};
+  $html .= $table;
   return $html;
 }
 
