@@ -16,6 +16,14 @@ It emulates the type of output produced by a program like HYCSV's HYDSYS.ERR rep
 
 This script enables all the exceedences to be assembled and output to one, email compliant, html report. The html output can be imported into an email script and sent weekly.
 
+# Phased Ratings Logic
+
+If the scripts finds a phased rating it;
+
+1. Looks forward until the next non-phased rating and takes that rating as the end point for the current rating
+2. Takes the phased rating date as the start date for the next rating
+3. Uses the dll to get the max & min for the entire duration of the phasing dates
+
 # Output Report
 
 ![Output Report](/images/report.png)
