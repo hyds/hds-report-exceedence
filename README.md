@@ -20,8 +20,8 @@ It is also email compliant so that the html output can be imported into the body
 If the scripts finds a phased rating it;
 
 * Looks forward until the next non-phased rating and takes that rating as the end point for the current rating
-* Takes the phased rating date as the start date for the next rating
-* Uses the dll to get the max & min for the entire duration of the phasing dates
+* Takes the preceeding phased rating date as the start date for the next rating
+* Uses the dll to get the max & min for the phasing dates
 
 # Output Report
 
@@ -34,21 +34,18 @@ If the scripts finds a phased rating it;
 # INI configuration
 
 ![INI file](/images/ini.png)
-
-# TODO
-
-### Phase changes
-
-Look back to the last rating.
-
-1. If there is ts but no rating - report
-2. If the last rating is phase = T, then 
-2.1. Set the startdate for the ts period back 1 week from the start date for ts for the JSonCall get_ts max & min
-3. look forward to the next false (ie ignore true) - if no end date, take now
-
  
 # Dependencies
 
+###Hydrological Data Services 
+local::lib "$Bin/HDS/";
+
+###Kisters modules
+HydDLLp;
+
+###Kisters libraries
+'hydlib.pl';
+'hydtim.pl';
   
 # Bugs
 
