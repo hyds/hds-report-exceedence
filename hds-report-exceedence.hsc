@@ -1,7 +1,7 @@
 =setup
 
 [Configuration]
-ListFileExtension = TXT
+ListFileExtension = HTM
 
 [Window]
 Name = HAS
@@ -10,13 +10,11 @@ Head = Report exceedances
 
 [Labels]
 SITELIST    = END   20   4 #MESS(SYS.COMMON.SITELIST)
-HTML        = END   +0  +1 HTML Output (for email)
 OUT         = END   +0  +1 Report Output
 
 [Fields] 
 SITELIST    = 21   4 INPUT   CHAR       30  0  TRUE   0.0 0.0 '0                             ' STN
-HTML        = +0  +1 INPUT   CHAR       40  0  FALSE   FALSE  0.0 0.0 '&hyd-junkpath.email.html' $OP
-OUT         = +0  +1 INPUT   CHAR       10  0  FALSE   FALSE  0.0 0.0 'S' $OP
+OUT         = +0  +1 INPUT   CHAR       10  0  FALSE   FALSE  0.0 0.0 '#PRINT(P           )'
 
 [Perl]
 
@@ -56,7 +54,7 @@ use Cwd;
 
 use FindBin qw($Bin);
 
-#Hydrological Administration Services Modules
+#Hydrological Data Services 
 use local::lib "$Bin/HDS/";
 
 #Hydstra modules
@@ -67,7 +65,7 @@ require 'hydlib.pl';
 require 'hydtim.pl';
 
 #Globals
-my $prt_fail = '-P';
+my $prt_fail = '-X';
 my $level_varnum = '100.00';
 
 main: {
@@ -87,25 +85,18 @@ main: {
  
   MkDir($junk);
   
-  
   #Gather parameters
-  #my %photo_types   = %{$ini{'photo_types'}};
-  #my %emails        = %{$ini{'email_setup'}};
-  #my $import_dir    = $ini{perl_parameters}{dir};  
   my $site_list    = $ini{perl_parameters}{sitelist};  
-  my $htmlfile    = $ini{perl_parameters}{html};  
+  my $htmlfile    = $ini{perl_parameters}{out};  
   my $html_template = $inipath.'\\hds\\html\\email.html';
   my $html = read_file( $html_template );
   $report{html} = $html;
   $report{htmlfile} = $htmlfile;
-  #my $htmlfile    = $junk."output.txt";  
-  my $nowdat = substr (NowString(),0,8); #YYYYMMDDHHIIEE to YYYYMMDD for default import date
-  my $nowtim = substr (NowString(),8,4); #YYYYMMDDHHIIEE to HHII for default import time
-  
   $report{'title'} = $script;
   
-  my $hydsys_err = $temp.'HYDSYS.ERR';
-  #Prt('-P',"INI [".HashDump(\%ini)."[$htmlfile]\n");
+  my $now = NowString();
+  my $nowdat = substr ($now,0,8); #YYYYMMDDHHIIEE to YYYYMMDD for default import date
+  my $nowtim = substr ($now,8,4); #YYYYMMDDHHIIEE to HHII for default import time
   
   try{
     $dll=HydDllp->New();
@@ -130,7 +121,6 @@ main: {
   }
   
   foreach my $site ( @sites ){
-    Prt('-S',"Checking site [$site]\n");
     my $ratper = $dll->JSonCall({'function' => 'get_db_info',
       'version' => 3,
       'params' => {
@@ -162,6 +152,7 @@ main: {
     }, 1000000);
 
     my @ratings;
+    
     try {
       @ratings = @{$ratper->{return}->{rows}};
     }
@@ -171,27 +162,21 @@ main: {
       next;
     };
     
-    #treat phased changes
-    
-    
     foreach my $rating ( 0 ..  $#ratings ) {
-      print "checking rating [$rating] \n";
-        my $next_rating;
-    
-      #if ( $ratings[$rating]->{phase} eq 'false' ){
-        #print "no phased rating\n";  
-        #my $next_rating = $rating + 1;
-        if( $rating + 1 >  $#ratings ){
-          #Prt('-P',"last rating [$rating] out of [$#ratings]");
-          $next_rating = -1;
-        }
-        elsif ( $ratings[$rating+1]->{phase} eq 'false' ){
-          print "no phased rating\n";  
-          $next_rating = $rating + 1;
-        }
-        elsif( $ratings[$rating+1]->{phase} eq 'true' ){
-          my $phase_rating_count = 1;
-          $next_rating = 'phased';
+      print "checking site ratings [$site] - $rating/$#ratings      \r";
+      my $next_rating = $rating + 1;
+      my $phased = 0;
+
+=skip      
+      if ( $ratings[$rating]->{phase} eq 'false' ){
+        print "no phased rating\n";  
+        $next_rating = ;
+      }
+=cut
+      
+      if( $ratings[$rating]->{phase} eq 'true' && $rating != 0){
+        my $phase_rating_count = 1;
+        $phased = 1;
 =skip LOOK FORWARD FOR NEXT NON-PHASE CHANGE          
           foreach my $rat ( $rating + 1 ..  $#ratings ) {
             #Prt('-P',"phased rat number [$#ratings]\n");
@@ -217,8 +202,8 @@ main: {
         
         my ($hhmm,$ss) = split('\.',$stime);
         my $start_time = $sdate.sprintf("%04d",$hhmm).sprintf("%02d",$ss);
-        my $phased_time = ReltoStr( StrtoRel($start_time)-10080 ) ;
-        $start_time = ( $next_rating eq 'phased')?  $phased_time: $start_time; # 1440 min a day = 1440 * 7 for a week = 10080
+        my $phased_time = ReltoStr( StrtoRel($start_time)-10080 );
+        $start_time = ( $phased == 1 )?  $phased_time: $start_time; # 1440 min a day = 1440 * 7 for a week = 10080
         
         #if it's the last rating then take now as the time for max min.
         #if it's a phased rating do I need to check agasint each of the ratings, not just get the max min within the one rating.
@@ -230,7 +215,7 @@ main: {
         my ($ehhmm,$ess) = split('\.',$etime);
         my $end_time = $edate.sprintf("%04d",$ehhmm).sprintf("%02d",$ess);
         my $adjusted_end = ReltoStr(StrtoRel($end_time)-1);
-        my $end_time = ( $next_rating == -1 )? NowString() : $adjusted_end; #yyyymmddhhiiee minus a minute so as not to overlap with the next rating
+        my $end_time = ( $rating + 1 >  $#ratings)? $now : $adjusted_end; #yyyymmddhhiiee minus a minute so as not to overlap with the next rating
         
         my $ratepts = $dll->JSonCall({'function' => 'get_db_info',
             'version' => 3,
@@ -352,14 +337,11 @@ main: {
           }
         },100000);
         
-        #Prt('-P',"tscal [".HashDump($tscall)."]\n");
-        
         my $min_val = $tsmincall->{return}->{traces}[0]->{trace}[0]->{v};
         my $min_tim = $tsmincall->{return}->{traces}[0]->{trace}[0]->{t};
         my $min_str_tim = StrtoPrm($min_tim);
     
         if ( $max_val > $max_stage_rating  ){
-          #print $io "$site , $reftab , $max_stage_rating_release , $max_stage_rating, $max_val , $max_str_tim\n";
           my $key = qq{$site$reftab$max_stage_rating_release$max_stage_rating};
           $key =~ s{\.}{}g;
           #$report{body}{$site}{max}{$key}{'Station'}                         = $site;
@@ -370,7 +352,6 @@ main: {
           $report{body}{$site}{max}{$key}{'Max Time'}                        = $max_str_tim;
         }
         elsif ( $min_val < $min_stage_rating && $min_val > 0){
-          #print $io "$site , $reftab , $max_stage_rating_release , $min_stage_rating, $min_val , $min_str_tim\n";
           my $key = qq{$site$reftab$max_stage_rating_release$min_stage_rating};
           $key =~ s{\.}{}g;
           #$report{body}{$site}{min}{$key}{'Station'}                         = $site;
@@ -388,24 +369,12 @@ main: {
  
   writeHTML(\%report);
  
+ 
 }
-
-# Rating table 1
-# 
-# 2m 1/1/2000 
-# 2.1m 2/1/2000 Rating Table 2 2.5m
-# 
-# Less than the start date of the next rating table
-# If block boundary is at midnight
-# 
-# 
-
-
 
 sub writeHTML {
   my $report_hash = shift;
   my %rep = %{$report_hash};
-  #Prt('-P',"rep [".HashDump(\%rep)."]");
   
   my $html          = $rep{html};
   my $report_title  = $rep{title};
@@ -440,7 +409,7 @@ sub writeHTML {
       $report_footer .= createHtmlFooterFromHashRef($rep_footer);
     }
     catch{
-      $report_footer .= "no footer produced"; #Prt('-R',"problem generating html footer");
+      $report_footer .= "-- End --"; 
     }
   }
   $body    = qq{<body>$report_body</body>};
@@ -459,9 +428,14 @@ sub createHTML{
   
   #my $htm = $html_ref->{htm};
   unlink($htmlf);
-  open my $ht, '>', $htmlf;
-  print $ht $htm;
-  close ($ht);
+  
+  #open my $ht, '>', $htmlf;
+  #print $ht $htm;
+  OpenFile(*hREPORT,$htmlf,">");
+  #OpenFile(*hOUTPUT,HyconfigValue('JUNKPATH').'exceedances.txt',">");
+  #close ($ht);
+  Prt('-R',$htm);
+  close (hREPORT);
   return 1;
 }
 
@@ -479,21 +453,16 @@ sub createHtmlBodyFromHashRef{
     foreach my $section ( sort keys %repbody) {
       my $ucfirt_section = ucfirst($section);
       my $sub = qq{<tr><td colspan="6"><b>$ucfirt_section Rating Exceedance</b><br></td></tr>};
-      #$html.= $sub;
       $html_table .= $sub;
       
       my %rows = %{$repbody{$section}};
       
       my @headers;
       my %headers;
-      #Prt('-S',"repbody [".HashDump(\%repbody)."]");
-      #Prt('-S',"rows [".HashDump(\%rows)."]");
-      #Prt('-P',"html [$html]");
-      
+
       #uniquify headers
       foreach my $record ( keys %rows) {
         my %recd = %{$rows{$record}};
-        #Prt('-P',"rec [".HashDump(\%recd)."]");
         foreach my $headder (keys %recd){
           $headers{$headder}++;
         }
@@ -514,11 +483,9 @@ sub createHtmlBodyFromHashRef{
       foreach my $record (keys %rows) {
         my %recds = %{$rows{$record}};
         my $tr_body = qq{<tr>};
-        #Prt('-S',HashDump(\%recds));
         foreach my $head ( @headers ){
           my $val = $recds{$head};
           $tr_body .= qq{<td>$val</td>};  
-          #Prt('-P',"head [$head], val [$val]\n");
         }
         $tr_body .= qq{</tr>};
         $html_table .= $tr_body;
@@ -538,9 +505,6 @@ sub createHtmlFooterFromHashRef{
   my $head = qq{<footer>Exceptions</footer>};
   my $table = '<table border="1">';
   $table .= $head;
-  #get orderly array
-  #$report{footer}{'No ts trace'}{$site}++;
-  #$report{body}{$site}{max}{$key}{'Ref Table'}                       = $reftab;
   my @headers; 
   foreach my $h ( sort keys %footer){
     push (@headers,$h);
@@ -559,4 +523,4 @@ sub createHtmlFooterFromHashRef{
   return $html;
 }
 
-1; # End of importer
+1; # End of exceedence report
