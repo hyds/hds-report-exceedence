@@ -10,10 +10,12 @@ Head = Report exceedances
 
 [Labels]
 SITELIST    = END   20   4 #MESS(SYS.COMMON.SITELIST)
+FULL        = END   +0  +1 Check All Historical Ratings?
 OUT         = END   +0  +1 Report Output
 
 [Fields] 
 SITELIST    = 21   4 INPUT   CHAR       30  0  TRUE   0.0 0.0 '0                             ' STN
+FULL        = +0  +1 INPUT   LIST        4  0  TRUE   0.0 0.0 'NO ' YNO
 OUT         = +0  +1 INPUT   CHAR       10  0  FALSE   FALSE  0.0 0.0 '#PRINT(P           )'
 
 [Perl]
@@ -90,10 +92,13 @@ main: {
   #Gather parameters
   my $site_list    = $ini{perl_parameters}{sitelist};  
   my $htmlfile    = $ini{perl_parameters}{out};  
+  my $full    = $ini{perl_parameters}{full};  
   my $html_template = $inipath.'\\hds\\html\\email.html';
   my $html = read_file( $html_template );
   $report{html} = $html;
   $report{htmlfile} = $htmlfile;
+  $report{full} = $full;
+  $report{hystns} = $site_list;
   $report{'title'} = $script;
   
   $now = NowString();
@@ -176,12 +181,17 @@ main: {
     }
     
     #if latest RATEPER is ticked then start at the latest rating 
-    my $rating = $#ratings; #($start_rating eq 'true')? $#ratings : 0;
-    checkRating({site=>$site,rating=>$rating,ratings=>$ratper->{return}->{rows}});
+    if ( lc( $full ) eq 'no'){
+      my $rating = $#ratings; #($start_rating eq 'true')? $#ratings : 0;
+      checkRating({site=>$site,rating=>$rating,ratings=>$ratper->{return}->{rows}});
+    }
+    else { 
+      foreach my $rating ( 0 ..  $#ratings ) {
+        # checkRating({ratings=>\@ratings,rating=>$rating});
+        checkRating({ratings=>$ratper->{return}->{rows},rating=>$rating,site=>$site});
+      } # end ratings loop
+    }
     
-    #foreach my $rating ( 0 ..  $#ratings ) {
-    #   checkRating({ratings=>\@ratings,rating=>$rating});
-    #} # end ratings loop
   }# end site loop
   $dll->Close;
   writeHTML(\%report);
@@ -343,6 +353,7 @@ sub checkRating {
       my $key = qq{$site$reftab$max_stage_rating_release$max_stage_rating};
       $key =~ s{\.}{}g;
       #$report{body}{$site}{max}{$key}{'Station'}                         = $site;
+      $report{body}{$site}{max}{$key}{'Ref Station'}                     = $refstn;
       $report{body}{$site}{max}{$key}{'Ref Table'}                       = $reftab;
       $report{body}{$site}{max}{$key}{'Release'}                         = $max_stage_rating_release;
       $report{body}{$site}{max}{$key}{'Max Rating'}                      = $max_stage_rating;
@@ -380,6 +391,7 @@ sub checkRating {
       my $key = qq{$site$reftab$max_stage_rating_release$min_stage_rating};
       $key =~ s{\.}{}g;
       #$report{body}{$site}{min}{$key}{'Station'}                         = $site;
+      $report{body}{$site}{min}{$key}{'Ref Station'}                     = $refstn;
       $report{body}{$site}{min}{$key}{'Ref Table'}                       = $reftab;
       $report{body}{$site}{min}{$key}{'Release'}                         = $max_stage_rating_release;
       $report{body}{$site}{min}{$key}{'Min Rating'}                      = $min_stage_rating;
@@ -400,9 +412,11 @@ sub writeHTML {
   
   my $html          = $rep{html};
   my $report_title  = $rep{title};
+  my $full          = $rep{full};
   my $htmlfile      = $rep{htmlfile};
   my $rep_body      = $rep{body};
   my $rep_footer    = $rep{footer};
+  my $hystns        = $rep{hystns};
   my $report_body; 
   my $report_footer; 
   my $body;
@@ -411,9 +425,27 @@ sub writeHTML {
   my $html_title   = qq{<title>$report_title</title>};
   my $rep_title = qq{<div class="title">Rating Exceedance Report</div>};
   $report_body .= $rep_title;
+  
   my $date = NowStr();
-  my $subtitle = qq{<div class="date">$date</div>};
+  my $duration = NowRel() - StrtoRel($now);
+  $duration = sprintf("%2d",$duration);
+  my $subtitle = qq{<div class="date">$date - Report Runtime: $duration minutes</div>};
   $report_body .= $subtitle;
+  
+  my $rep_subtitle;
+  
+  if ( $full eq 'no'){
+    $rep_subtitle = qq{<div class="mode">MODE: Latest Ratings Check Only</div>};
+  }
+  else{
+    $rep_subtitle = qq{<div class="mode">MODE: Full Historical Ratings Check</div>};
+  }
+  
+  $report_body .= $rep_subtitle;
+ 
+  my $rep_hystns = qq{<div class="hystns">Site List Expression: $hystns</div>};
+  $report_body .= $rep_hystns;
+ 
   
   if (!$rep_body){
     $report_body = qq{<div class="noexceed">No Exceedances found</div>};
@@ -437,7 +469,7 @@ sub writeHTML {
   
   $body    = qq{<body>$report_body</body>};
   $footer  = qq{<footer>$report_footer</footer>};
-  $html =~ s{{{title}}}{$html_title}; 
+  $html =~ s{{{title}}}{$html_title};
   $html =~ s{{{body}}}{$body}; 
   $html =~ s{{{footer}}}{$footer}; 
   createHTML($htmlfile,$html);
@@ -467,9 +499,10 @@ sub createHtmlBodyFromHashRef{
   my %body = %{$report_body};
   my $html = '';  
     
-  foreach my $site (keys %body) {
-    my $head = qq{<caption colspan="5">Site: $site</caption>};
-    my $html_table = '<table border="1">';
+  foreach my $site (sort {$a<=>$b} keys %body) {
+    my $head = qq{<caption colspan="6">Site: $site</caption>};
+    my $html_table = qq{<div class="container">}; 
+    $html_table.= '<table border="1">';
     $html_table.= $head;
       
     my %repbody = %{$body{$site}};
@@ -517,7 +550,8 @@ sub createHtmlBodyFromHashRef{
         $html_table .= $tr_body;
       }
     }
-    $html_table .= qq{</table><br>};
+    $html_table .= qq{</table>};
+    $html_table .= qq{</container>};
     $html .= $html_table;
   }
  return $html;
@@ -543,6 +577,7 @@ sub createHtmlFooterFromHashRef{
     foreach my $site ( sort keys %{ $footer{$head} }) {
         $tr_footer .= qq{$site, };  
     }
+    $tr_footer =~ s{, $}{};
     $tr_footer .= qq{</td>};
     $table .= qq{$tr_footer</tr>};
   }
