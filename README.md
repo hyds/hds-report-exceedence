@@ -32,10 +32,6 @@ A phased rating is accommodated by the above procedure
 # Parameter screen
 
 ![Parameter screen](/images/psc.png)
-
-# INI configuration
-
-![INI file](/images/ini.png)
  
 # Dependencies
 
