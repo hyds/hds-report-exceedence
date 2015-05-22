@@ -4,16 +4,16 @@ Version 1.01
 
 # Synopsis
 
-Typically the Ratings Team in a surface water data group requires information on the time and rating number that a timeseries point exceeds the latest rating. To accommodate such a requirement, this HYSCRIPT reports on rating table exceedance in a table output. 
+Typically the Ratings Team in a surface water data group requires information on the time and rating number that a timeseries point exceeds the latest rating. To accommodate such a requirement, this ```HYSCRIPT``` reports on rating table exceedance in a table output. 
 
-It emulates the type of output produced by a program like HYCSV's HYDSYS.ERR report. HYDSYS.ERR is generated when a program like HYCSV, 
+It emulates the type of output produced by a program like ```HYCSV```'s ```HYDSYS.ERR``` report. ```HYDSYS.ERR``` is generated when a program like ```HYCSV```, 
 
 1. Pushes data through a rating, and 
 2. Finds a rating exceedance
 
-HYCSV will error when an exceedance is found, so the workflow was to run it, find an exceedance, fix it, run HYCSV again to find the next exceedance, etc. This exceedance script however enables all the exceedances to be assembled and reported in one output.
+```HYCSV``` or ```HYTAB``` will error when an exceedance is found. So the workflow was to run it, find an exceedance, fix it, run HYCSV again to find the next exceedance, etc. 
 
-It is also email compliant so that the html output can be imported into the body of an email and sent weekly to RATINGS administrators.
+The ```hds-report-exceedance``` ```HYSCRIPT``` enables all the exceedances to be assembled and reported in one output. It is also email compliant report so that the html output can be imported into the body of an email and sent weekly to RATINGS administrators.
 
 # Phased Ratings Logic
 
@@ -24,6 +24,24 @@ For each non-phased rating, the script;
 * Uses the dll to get the max & min for the phasing dates
 
 A phased rating is accommodated by the above procedure
+
+# HYXPLORE Menu Location
+
+All ```HYSCRIPTS``` produced by HDS are linked into the ```HYXPLORE``` menus and stored in the company fav folder under the HDS sub-folder:
+
+![Hyxplore Menu](/images/hyxplore.png)
+
+# HYSCRIPT Physical Location
+
+The physical location of all ```HYSCRIPTS``` produced by HDS are stored in the ```INIPATH``` directory under the subdirectory named ```HDS```. This is a relative directory configured in the ```HYCONFIG.INI``` file. There will also be a GitHub repository associated with the script that stores a versioned copy.
+
+A typical location might be: 
+
+```
+>C:\hydstra\hyd\dat\ini\hds\
+```
+
+But you will need to consult HYCONFIG setup appropriate to your system.
 
 # Output Report
 
