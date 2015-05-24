@@ -25,6 +25,14 @@ For each non-phased rating, the script;
 
 A phased rating is accommodated by the above procedure
 
+# Output Report
+
+![Output Report](/images/report.png)
+
+# Parameter screen
+
+![Parameter screen](/images/psc.png)
+
 # HYXPLORE Menu Location
 
 All ```HYSCRIPTS``` produced by HDS are linked into the ```HYXPLORE``` menus and stored in the company fav folder under the HDS sub-folder:
@@ -43,15 +51,10 @@ A typical location might be:
 
 But you will need to consult HYCONFIG setup appropriate to your system.
 
-# Output Report
-
-![Output Report](/images/report.png)
-
-# Parameter screen
-
-![Parameter screen](/images/psc.png)
  
 # Dependencies
+
+
 
 ###Hydrological Data Services Modules
 * /HDS/ Directory

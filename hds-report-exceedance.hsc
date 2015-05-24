@@ -387,7 +387,7 @@ sub checkRating {
     $min_val = $tsmincall->{return}->{traces}[0]->{trace}[0]->{v};
     $min_tim = $tsmincall->{return}->{traces}[0]->{trace}[0]->{t};
     $min_str_tim = StrtoPrm($min_tim);
-    if ( $min_val < $min_stage_rating && $min_val > 0){
+    if ( $min_val < $min_stage_rating ){
       my $key = qq{$site$reftab$max_stage_rating_release$min_stage_rating};
       $key =~ s{\.}{}g;
       #$report{body}{$site}{min}{$key}{'Station'}                         = $site;
