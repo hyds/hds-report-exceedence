@@ -17,10 +17,10 @@ The ```hds-report-exceedance``` ```HYSCRIPT``` enables all the exceedances to be
 
 # Phased Ratings Logic
 
-For each non-phased rating, the script;
+For each non-phased rating, the script takes a rating and;
 
-* Looks forward for the next non-phased rating and takes that rating as the end datetime for the timeseries maxmin lookup
-* Looks backward for the next non-phased rating and takes penultimate phased rating as the start datetime for the timeseries maxmin lookup
+* Looks forward for the next non-phased rating and takes that rating as the end datetime for the timeseries maxmin lookup 
+* Looks backward for the next non-phased rating and takes second earliest phased rating as the start datetime for the timeseries maxmin lookup
 * Uses the dll to get the max & min for the phasing dates
 
 A phased rating is accommodated by the above procedure
