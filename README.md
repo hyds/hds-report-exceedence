@@ -43,10 +43,10 @@ All ```HYSCRIPTS``` produced by HDS are linked into the ```HYXPLORE``` menus and
 
 The physical location of all ```HYSCRIPTS``` produced by HDS are stored in the ```INIPATH``` directory under the subdirectory named ```HDS```. This is a relative directory configured in the ```HYCONFIG.INI``` file. There will also be a GitHub repository associated with the script that stores a versioned copy.
 
-A typical location might be: 
+A typical location for the script might be: 
 
 ```
->C:\hydstra\hyd\dat\ini\hds\
+>C:\hydstra\hyd\dat\ini\hds\hds-report-exceedance.hsc
 ```
 
 But you will need to consult HYCONFIG setup appropriate to your system.
